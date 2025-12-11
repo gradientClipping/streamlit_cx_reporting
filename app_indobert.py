@@ -13,26 +13,22 @@ from sklearn.metrics import (
     recall_score,
     precision_score
 )
-# NOTE: We removed 'Trainer' and 'TrainingArguments' to prevent cloud crashes
+
 from transformers import (
     AutoTokenizer,
     AutoModelForSequenceClassification
 )
 
-# --- Page Configuration ---
 st.set_page_config(
     page_title="IndoBERT Classifier",
     layout="wide"
 )
 
-# --- Constants ---
-# If you don't upload the CSV, the app will run in "Prediction Only" mode silently
 DATA_PATH = "raw_data_classifier_full.csv" 
 FEEDBACK_FILE = "new_training_data.csv"
 REMOTE_MODEL_ID = "juangwijaya/indobert-2-neg-cx"
 RANDOM_STATE = 42
 
-# Detect Hardware
 if torch.backends.mps.is_available():
     DEVICE = "mps"
 elif torch.cuda.is_available():
@@ -40,7 +36,6 @@ elif torch.cuda.is_available():
 else:
     DEVICE = "cpu"
 
-# --- 1. Data Helpers ---
 @st.cache_data
 def load_and_prep_data(filepath):
     if not os.path.exists(filepath):
@@ -68,7 +63,6 @@ def get_splits(df):
     )
     return train_df, val_df
 
-# --- 2. Model Loader ---
 @st.cache_resource
 def load_model_pipeline():
     try:
@@ -93,18 +87,15 @@ def predict_text(text, tokenizer, model):
     
     return pred_label, confidence
 
-# --- 3. Main UI ---
 st.title("IndoBERT Classification Dashboard")
 
 if 'history' not in st.session_state:
     st.session_state['history'] = []
 
-# Load resources
 raw_df = load_and_prep_data(DATA_PATH)
 train_df, val_df = get_splits(raw_df)
 tokenizer, model = load_model_pipeline()
 
-# --- SIDEBAR ---
 with st.sidebar:
     st.header("System Status")
     if model:
@@ -143,7 +134,6 @@ with st.sidebar:
             new_row.to_csv(FEEDBACK_FILE, mode='a', header=not os.path.exists(FEEDBACK_FILE), index=False)
             st.success("Saved.")
 
-# --- RESULTS DISPLAY ---
 if st.session_state['history']:
     latest = st.session_state['history'][0]
     c1, c2 = st.columns([1, 3])
@@ -158,8 +148,6 @@ if st.session_state['history']:
         st.write(latest["Input Text"])
     st.divider()
 
-# --- TABS ---
-# Only show Metrics/Dataset tabs if the CSV file was found
 if raw_df is not None:
     tab1, tab2, tab3, tab4 = st.tabs(["History", "Metrics", "Error Analysis", "Dataset"])
 else:
@@ -184,7 +172,6 @@ if raw_df is not None:
                     val_texts = val_df["message"].tolist()
                     val_labels = val_df["label"].tolist()
                     preds = []
-                    # Simple Batch Inference (No Trainer needed)
                     batch_size = 16
                     for i in range(0, len(val_texts), batch_size):
                         batch_texts = val_texts[i:i+batch_size]
